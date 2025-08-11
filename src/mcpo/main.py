@@ -141,6 +141,8 @@ def create_sub_app(server_name: str, server_cfg: Dict[str, Any], cors_allow_orig
         sub_app.state.args = [server_cfg["url"]]
         sub_app.state.headers = server_cfg.get("headers")
 
+    sub_app.state.forward_headers = server_cfg.get("forwardHeaders", [])
+
     if api_key and strict_auth:
         sub_app.add_middleware(APIKeyMiddleware, api_key=api_key)
 
@@ -299,6 +301,7 @@ async def create_dynamic_endpoints(app: FastAPI, api_dependency=None):
             endpoint_name,
             form_model_fields,
             response_model_fields,
+            app.state.forward_headers
         )
 
         app.post(
