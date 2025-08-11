@@ -52,6 +52,13 @@ You can also provide headers for the SSE connection:
 mcpo --port 8000 --api-key "top-secret" --server-type "sse" --header '{"Authorization": "Bearer token", "X-Custom-Header": "value"}' -- http://127.0.0.1:8001/sse
 ```
 
+You can also use the forwardHeaders option to specify which incoming HTTP request headers should be forwarded to the underlying MCP tool. This is useful for propagating authentication tokens, user context, or other custom headers:
+
+```bash
+mcpo --port 8000 --api-key "top-secret" --server-type "sse" --forwardHeaders '["Authorization", "X-User-Id"]' -- http://127.0.0.1:8001/sse
+```
+
+
 To use a Streamable HTTP-compatible MCP server, specify the server type and endpoint:
 
 ```bash
@@ -115,7 +122,8 @@ Example config.json:
     },
     "mcp_streamable_http": {
       "type": "streamable-http",
-      "url": "http://127.0.0.1:8002/mcp"
+      "url": "http://127.0.0.1:8002/mcp",
+      "forwardHeaders": ["Authorization", "X-User-Id"]
     } // Streamable HTTP MCP Server
   }
 }
