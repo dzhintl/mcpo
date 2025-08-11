@@ -2,7 +2,7 @@ import json
 import traceback
 from typing import Any, Dict, ForwardRef, List, Optional, Type, Union
 import logging
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
 from mcp import ClientSession, types
 from mcp.types import (
@@ -270,7 +270,11 @@ def get_tool_handler(
     endpoint_name,
     form_model_fields,
     response_model_fields=None,
+    forward_headers=None
 ):
+    if forward_headers is None:
+        forward_headers = []
+
     if form_model_fields:
         FormModel = create_model(f"{endpoint_name}_form_model", **form_model_fields)
         ResponseModel = (
@@ -282,9 +286,15 @@ def get_tool_handler(
         def make_endpoint_func(
             endpoint_name: str, FormModel, session: ClientSession
         ):  # Parameterized endpoint
-            async def tool(form_data: FormModel) -> Union[ResponseModel, Any]:
+            async def tool(request: Request, form_data: FormModel) -> Union[ResponseModel, Any]:
                 args = form_data.model_dump(exclude_none=True, by_alias=True)
                 logger.info(f"Calling endpoint: {endpoint_name}, with args: {args}")
+
+                for header in forward_headers:
+                    if header in request.headers:
+                        args[header] = request.headers[header]
+                        logger.info(f"Forwarding header: {header}")
+
                 try:
                     result = await session.call_tool(endpoint_name, arguments=args)
 
@@ -338,12 +348,19 @@ def get_tool_handler(
         def make_endpoint_func_no_args(
             endpoint_name: str, session: ClientSession
         ):  # Parameterless endpoint
-            async def tool():  # No parameters
+            async def tool(request: Request):
                 logger.info(f"Calling endpoint: {endpoint_name}, with no args")
+
+                args = {}
+                for header in forward_headers:
+                    if header in request.headers:
+                        args[header] = request.headers[header]
+                        logger.info(f"Forwarding header: {header}")
+                        
                 try:
                     result = await session.call_tool(
-                        endpoint_name, arguments={}
-                    )  # Empty dict
+                        endpoint_name, arguments=args
+                    )
 
                     if result.isError:
                         error_message = "Unknown tool execution error"
@@ -388,5 +405,5 @@ def get_tool_handler(
             return tool
 
         tool_handler = make_endpoint_func_no_args(endpoint_name, session)
-
+        
     return tool_handler
